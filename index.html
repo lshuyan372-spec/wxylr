@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>无心引路人：生辰</title>
+<style>
+    :root {
+        --bg-dark: #050505;
+        --yin-red: #8a2525;
+        --gold: #e5c07b;
+        --text-gray: #c9d1d9;
+    }
+
+    body {
+        margin: 0; background: #000; color: var(--text-gray);
+        font-family: "Noto Serif SC", "Source Han Serif SC", "Microsoft YaHei", serif;
+        overflow: hidden; user-select: none;
+        display: flex; justify-content: center; align-items: center;
+        width: 100vw; height: 100vh;
+    }
+
+    /* 启动屏 */
+    #start-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        z-index: 9999; cursor: pointer; transition: opacity 1.5s ease;
+    }
+    #start-screen h1 { color: var(--gold); letter-spacing: 14px; font-weight: normal; margin-bottom: 24px; font-size: 42px; }
+    .start-tip { color: #555; font-size: 17px; letter-spacing: 5px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+
+    /* 游戏容器：内部始终 800x600，用 scale 等比撑满屏幕 */
+    #game-container {
+        display: flex; flex-direction: column;
+        width: 800px; height: 600px;
+        position: relative;
+        background: var(--bg-dark);
+        border: 1px solid #1a1a1a;
+        transform-origin: center center;
+        /* scale 由 JS 动态设置 */
+    }
+
+    /* 顶部状态栏 */
+    #header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 25px; background: rgba(0,0,0,0.85); z-index: 50;
+        border-bottom: 1px solid #222; flex-shrink: 0;
+    }
+    .btn-sys {
+        background: transparent; color: #888; border: 1px solid #444;
+        padding: 6px 15px; cursor: pointer; font-size: 14px; letter-spacing: 2px;
+        transition: 0.4s; font-family: inherit;
+    }
+    .btn-sys:hover { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 10px rgba(229,192,123,0.2); }
+    body.yin-realm #realm-toggle { color: #ff7b72; border-color: #ff7b72; text-shadow: 0 0 8px rgba(255,123,114,0.6); }
+
+    /* 场景 */
+    #scene-container { flex: 1; position: relative; overflow: hidden; background: #000; }
+    .stage {
+        position: absolute; width: 100%; height: 100%; display: none;
+        background-size: cover; background-position: center;
+        filter: grayscale(60%) brightness(50%) contrast(1.1) sepia(10%) hue-rotate(180deg);
+        transition: filter 1.5s ease;
+    }
+    .stage.active { display: block; animation: fadeIn 0.8s ease; }
+    body.yin-realm .stage { filter: grayscale(0%) brightness(90%) contrast(1.2) sepia(20%); }
+
+    /* 里世界切换闪光 */
+    #realm-flash {
+        position: absolute; inset: 0; pointer-events: none; z-index: 400;
+        opacity: 0; transition: opacity 0.15s;
+    }
+
+    /* 背景图 */
+    #stage-0 { background-image: url('assets/bg_desk_yin.png'); }
+    #stage-1 { background-image: url('assets/bg_bed_yin.png'); }
+    #stage-2 { background-image: url('assets/bg_mirror_yin.png'); }
+    #stage-3 { background-image: url('assets/bg_gate_yin.png'); }
+
+    /* 导航箭头 */
+    .nav {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        width: 40px; height: 80px; background: rgba(0,0,0,0.4);
+        color: rgba(255,255,255,0.3); font-size: 30px;
+        display: flex; justify-content: center; align-items: center;
+        cursor: pointer; z-index: 100; transition: 0.3s;
+    }
+    .nav:hover { color: #fff; background: rgba(0,0,0,0.8); }
+    #nav-l { left: 0; } #nav-r { right: 90px; }
+
+    /* 热区 */
+    .hotspot {
+        position: absolute; cursor: pointer;
+        display: flex; justify-content: center; align-items: center;
+        background-size: contain; background-repeat: no-repeat; background-position: center;
+        transition: all 0.4s ease; background-color: transparent; border: none;
+    }
+    .hotspot:not(.text-hotspot):hover {
+        filter: drop-shadow(0 0 8px rgba(229,192,123,0.5));
+        transform: scale(1.03);
+    }
+    body.yin-realm .hotspot:not(.text-hotspot):hover {
+        filter: drop-shadow(0 0 10px rgba(255,0,0,0.5));
+    }
+    .text-hotspot {
+        color: transparent; font-size: 13px; letter-spacing: 2px;
+        border: 1px solid transparent; border-radius: 2px;
+    }
+    .text-hotspot:hover {
+        border-color: rgba(229,192,123,0.2); color: rgba(229,192,123,0.6);
+        background: rgba(0,0,0,0.35); filter: none; transform: none;
+    }
+
+    /* 怀表样式已在行内定义 */
+
+    /* 物品获取飘字 */
+    .item-popup {
+        position: absolute; top: 45%; left: 50%;
+        transform: translate(-50%, -50%);
+        color: var(--gold); font-size: 13px; letter-spacing: 4px;
+        pointer-events: none; z-index: 500;
+        animation: itemPopup 2s ease forwards;
+        text-shadow: 0 0 16px rgba(229,192,123,0.5);
+    }
+    @keyframes itemPopup {
+        0%   { opacity: 0; transform: translate(-50%, -40%); }
+        20%  { opacity: 1; transform: translate(-50%, -50%); }
+        70%  { opacity: 1; transform: translate(-50%, -58%); }
+        100% { opacity: 0; transform: translate(-50%, -68%); }
+    }
+
+    /* 物品栏 */
+    #inventory {
+        position: absolute; right: 0; top: 45px; width: 90px; height: calc(100% - 45px);
+        background: rgba(8,8,10,0.95); border-left: 1px solid #1a1a1a;
+        display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 150;
+    }
+    .inv-label { font-size: 9px; letter-spacing: 3px; color: #2a2a2a; margin-bottom: 10px; }
+    .inv-item {
+        width: 65px; height: 65px; border: 1px solid #222; background-color: #000; margin-bottom: 12px;
+        background-size: 80%; background-repeat: no-repeat; background-position: center;
+        cursor: pointer; transition: 0.3s; position: relative;
+    }
+    .inv-item:hover { border-color: #333; }
+    .inv-item.selected { border-color: var(--yin-red); box-shadow: inset 0 0 15px rgba(138,37,37,0.5); }
+    .inv-item span {
+        position: absolute; bottom: 2px; width: 100%; text-align: center;
+        font-size: 10px; color: #555; background: rgba(0,0,0,0.8); display: none;
+    }
+    .inv-item.no-img span { display: block; }
+    .inv-item .inv-tip {
+        position: absolute; right: 72px; top: 50%; transform: translateY(-50%);
+        background: rgba(0,0,0,0.95); border: 1px solid #222;
+        color: #777; font-size: 11px; letter-spacing: 1px; padding: 4px 10px;
+        white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 200;
+    }
+    .inv-item:hover .inv-tip { opacity: 1; }
+
+    /* 对话框 */
+    #dialog-box {
+        position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+        width: calc(100% - 110px - 40px);
+        background: rgba(5,5,8,0.95); border: 1px solid #222; padding: 16px 22px;
+        font-size: 14px; line-height: 1.9; opacity: 0; transition: opacity 0.5s;
+        pointer-events: none; z-index: 200; text-align: left;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+    }
+    #dialog-box.visible { opacity: 1; pointer-events: auto; cursor: pointer; }
+    .dialog-arrow {
+        position: absolute; bottom: 7px; right: 14px;
+        width: 0; height: 0;
+        border-left: 5px solid transparent; border-right: 5px solid transparent;
+        border-top: 6px solid #333; animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* 密码遮罩 */
+    #overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.96); display: none; flex-direction: column;
+        justify-content: center; align-items: center; z-index: 300; backdrop-filter: blur(8px);
+    }
+    .overlay-title { color: #888; letter-spacing: 5px; margin-bottom: 10px; font-size: 13px; }
+    .overlay-hint { color: #555; font-size: 11px; letter-spacing: 3px; margin-bottom: 28px; line-height: 2.2; text-align: center; }
+    #overlay-input {
+        font-size: 40px; text-align: center; letter-spacing: 25px;
+        padding: 10px 10px 10px 36px; margin: 10px 0 8px;
+        background: transparent; color: var(--gold);
+        border: none; border-bottom: 1px solid #2a2a2a; outline: none;
+        width: 280px; font-family: monospace; caret-color: var(--gold);
+    }
+    #overlay-input::placeholder { color: #1a1a1a; }
+    #overlay-error {
+        color: #5a1515; font-size: 11px; letter-spacing: 2px;
+        height: 20px; margin-bottom: 20px; opacity: 0; transition: opacity 0.3s;
+    }
+    #overlay-error.show { opacity: 1; }
+    .btn-group button {
+        padding: 10px 30px; font-size: 14px; background: transparent; color: #555; letter-spacing: 2px;
+        border: 1px solid #252525; cursor: pointer; margin: 0 10px; transition: 0.3s; font-family: inherit;
+    }
+    .btn-group button:hover { border-color: var(--gold); color: #aaa; background: rgba(229,192,123,0.05); }
+
+    /* 结局层 */
+    #ending-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000;
+        display: none; flex-direction: column; justify-content: center; align-items: center;
+        z-index: 1000; cursor: pointer;
+    }
+    #ending-content {
+        width: 85%; text-align: center; position: relative;
+        height: 100px; display: flex; justify-content: center; align-items: center;
+    }
+    .floating-line {
+        color: #c8c8c8; font-size: 17px; line-height: 2.8; letter-spacing: 3px;
+        opacity: 0; filter: blur(8px);
+        transition: opacity 1.8s ease, filter 1.8s ease;
+        position: absolute;
+    }
+    .floating-line.reveal { opacity: 1; filter: blur(0); }
+    .floating-line.fade-out {
+        opacity: 0; filter: blur(5px);
+        transition: opacity 0.9s ease, filter 0.9s ease;
+    }
+    #click-tip {
+        position: absolute; bottom: 30px; color: #2a2a2a; font-size: 12px; letter-spacing: 3px;
+        animation: pulse 2s infinite; pointer-events: none;
+    }
+
+    /* 上一句/下一句按钮 */
+    #ending-nav {
+        position: absolute; bottom: 28px;
+        display: none; gap: 40px; align-items: center;
+    }
+    #ending-nav button {
+        background: transparent; border: 1px solid #2a2a2a; color: #444;
+        width: 36px; height: 36px; font-size: 16px; cursor: pointer;
+        border-radius: 2px; transition: all 0.3s; font-family: inherit;
+        display: flex; align-items: center; justify-content: center;
+    }
+    #ending-nav button:hover { border-color: var(--gold); color: var(--gold); }
+    #ending-nav button:disabled { opacity: 0.15; cursor: default; border-color: #1a1a1a; color: #1a1a1a; }
+
+    /* 重新触碰记忆 */
+    #replay-prompt {
+        display: none;
+        position: absolute; bottom: 38px;
+        color: #2a2a2a; font-size: 12px; letter-spacing: 4px;
+        cursor: pointer; transition: color 0.4s;
+        animation: pulse 3s ease-in-out infinite;
+    }
+    #replay-prompt:hover { color: #666; animation: none; }
+
+    /* 生日快乐整句 */
+    #happy-birthday {
+        display: none;
+        position: relative;
+        font-size: 72px;
+        color: var(--gold);
+        font-family: "Songti SC", "STSong", "SimSun", serif;
+        letter-spacing: 28px;
+        padding-left: 28px; /* 补偿letter-spacing */
+        opacity: 0;
+        filter: blur(8px);
+        transform: scale(0.92);
+        transition: opacity 2s ease, filter 2s ease, transform 2s ease;
+        text-shadow: 0 0 40px rgba(229,192,123,0.7), 0 0 80px rgba(229,192,123,0.25);
+    }
+    #happy-birthday.appear {
+        opacity: 1;
+        filter: blur(0);
+        transform: scale(1);
+    }
+    /* 火星粒子 */
+    .spark {
+        position: absolute;
+        width: 3px; height: 3px;
+        border-radius: 50%;
+        background: var(--gold);
+        pointer-events: none;
+        animation: sparkFly var(--dur) ease-out forwards;
+        opacity: 0;
+    }
+    @keyframes sparkFly {
+        0%   { opacity: 0.9; transform: translate(0, 0) scale(1); }
+        60%  { opacity: 0.6; }
+        100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.2); }
+    }
+
+    @keyframes wishGlow { from { opacity: 0.5; filter: blur(1px); } to { opacity: 1; filter: blur(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div id="start-screen" onclick="initGame()">
+    <h1>无心引路人</h1>
+    <div class="start-tip">点击触碰记忆的裂痕</div>
+</div>
+
+<div id="game-container">
+    <audio id="bgm" loop><source src="assets/bgm.mp3" type="audio/mpeg"></audio>
+
+    <div id="header">
+        <button class="btn-sys" onclick="giveHint()">冥思</button>
+        <button id="realm-toggle" class="btn-sys">界限之眼: 关</button>
+    </div>
+
+    <div id="scene-container">
+        <div id="realm-flash"></div>
+        <div class="nav" id="nav-l" onclick="changeStage(-1)">&#10094;</div>
+        <div class="nav" id="nav-r" onclick="changeStage(1)">&#10095;</div>
+
+        <!-- 场景0：正北 书桌 -->
+        <div id="stage-0" class="stage active">
+            <!-- 时钟：桌面右上角 放大 -->
+            <div class="hotspot" id="obj-watch" onclick="interact('watch')"
+                 style="top:12%;right:12%;width:105px;height:105px;background-image:url('assets/item_watch.png');border:1px solid rgba(229,192,123,0.35);border-radius:2px;box-shadow:0 0 12px rgba(229,192,123,0.08);"></div>
+            <!-- 木盒：右移，尺寸收小贴合木盒 -->
+            <div class="hotspot text-hotspot" id="hs-box"
+                 style="top:45%;left:40%;width:140px;height:90px;"
+                 onclick="interact('box')">未署名的木盒</div>
+            <!-- 抽屉：木盒正下方，左右完全对齐木盒 -->
+            <div class="hotspot text-hotspot" id="hs-drawer"
+                 style="top:64%;left:40%;width:140px;height:45px;font-size:12px;"
+                 onclick="interact('drawer')">上锁的抽屉</div>
+        </div>
+
+        <!-- 场景1：正东 病房 -->
+        <div id="stage-1" class="stage">
+            <!-- 蜡烛：左侧床头柜上 -->
+            <div class="hotspot" id="hs-candle"
+                 style="top:38%;left:10%;width:110px;height:185px;background-image:url('assets/item_candle.png');background-size:contain;background-repeat:no-repeat;background-position:bottom center;border:1px solid rgba(229,192,123,0.25);border-radius:2px;box-shadow:0 0 14px rgba(229,192,123,0.06);"
+                 onclick="interact('candle')"></div>
+            <!-- 心电监护仪：右侧中部，机器通常在床边偏低 -->
+            <div class="hotspot text-hotspot" id="hs-monitor"
+                 style="top:42%;right:12%;width:180px;height:140px;"
+                 onclick="interact('monitor')">心电监护仪</div>
+        </div>
+
+        <!-- 场景2：正南 虚镜 -->
+        <div id="stage-2" class="stage">
+            <div class="hotspot text-hotspot"
+                 style="top:12%;left:32%;width:280px;height:480px;"
+                 onclick="interact('mirror')">审视之镜</div>
+        </div>
+
+        <!-- 场景3：正西 界门 -->
+        <div id="stage-3" class="stage">
+            <div class="hotspot text-hotspot" id="hs-slot"
+                 style="top:42%;left:45%;width:90px;height:90px;"
+                 onclick="interact('slot')">门中央的凹槽</div>
+        </div>
+
+        <!-- 密码锁 -->
+        <div id="overlay">
+            <div class="overlay-title">陈旧的密码锁</div>
+            <div class="overlay-hint">记忆的裂缝中，<br>有某个数字在颤抖</div>
+            <input type="text" id="overlay-input" inputmode="numeric"
+                   maxlength="4" placeholder="· · · ·" autocomplete="off"
+                   oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                   onkeydown="if(event.key==='Enter')checkPwd()">
+            <div id="overlay-error">密码不对…初遇的时间，加上她迟到的三分钟</div>
+            <div class="btn-group">
+                <button onclick="checkPwd()">解锁</button>
+                <button onclick="closeOverlay()">松手</button>
+            </div>
+        </div>
+
+        <!-- 结局层 -->
+        <div id="ending-layer">
+            <div id="ending-content"></div>
+            <div id="happy-birthday"></div>
+            <!-- 上一句/下一句导航 -->
+            <div id="ending-nav">
+                <button id="btn-prev" onclick="endingPrev()">&#10094;</button>
+                <button id="btn-next" onclick="endingNext()">&#10095;</button>
+            </div>
+            <div id="click-tip">点击 › 继续</div>
+            <!-- 重新触碰记忆 -->
+            <div id="replay-prompt" onclick="replayGame()">记忆的裂痕，还想再触碰一次吗</div>
+        </div>
+    </div>
+
+    <div id="inventory"><div class="inv-label">道具</div></div>
+    <div id="dialog-box" onclick="dismissDialog()">
+        <span id="dialog-speaker" style="color:var(--gold);font-size:11px;letter-spacing:3px;display:block;margin-bottom:4px;">沈冥</span>
+        <span id="dialog-text"></span>
+        <div class="dialog-arrow"></div>
+    </div>
+</div>
+
+<script>
+// ============================
+// 游戏状态
+// ============================
+const state = {
+    isYinRealm: false,
+    stage: 0,
+    inv: [],
+    selected: null,
+    f: {
+        drawer:         false,
+        candleLit:      false,
+        thermometerHot: false,
+        gotContract:    false,
+        boxUnlocked:    false
+    }
+};
+
+const dict = {
+    'match':         { n: '火柴',         img: 'item_match_lit.png' },
+    'thermometer':   { n: '温度计',       img: 'item_thermometer.png' },
+    'thermometer_h': { n: '滚烫的温度计', img: 'item_thermometer.png' },
+    'contract':      { n: '契约',         img: 'item_contract.png' }
+};
+
+// ============================
+// 初始化
+// ============================
+function initGame() {
+    const s = document.getElementById('start-screen');
+    s.style.opacity = '0';
+    s.style.pointerEvents = 'none';
+    setTimeout(() => s.style.display = 'none', 1500);
+
+    say('沈冥，你感觉到那股违和感了吗？法庭清除了你的记忆，但今天，桌上凭空出现了一个未署名的木盒……');
+
+    // 开头自动播放BGM，渐强淡入
+    const bgm = document.getElementById('bgm');
+    bgm.volume = 0;
+    bgm.play().then(() => {
+        let v = 0;
+        const t = setInterval(() => {
+            v = Math.min(v + 0.01, 0.5);
+            bgm.volume = v;
+            if (v >= 0.5) clearInterval(t);
+        }, 150);
+    }).catch(() => {});
+}
+
+// ============================
+// 对话
+// ============================
+let sayTimer = null;
+function say(text, duration) {
+    document.getElementById('dialog-text').textContent = text;
+    document.getElementById('dialog-box').classList.add('visible');
+    clearTimeout(sayTimer);
+    sayTimer = setTimeout(dismissDialog, duration || Math.max(3800, text.length * 130));
+}
+function dismissDialog() {
+    document.getElementById('dialog-box').classList.remove('visible');
+    clearTimeout(sayTimer);
+}
+
+// ============================
+// 冥思提示（含完整五步）
+// ============================
+function giveHint() {
+    const f = state.f;
+    if (!f.drawer)
+        say('墙上的时钟，记录了雨夜初遇的时间。加上她迟到的那三分钟，也许就是抽屉的密码。');
+    else if (!f.candleLit)
+        say('病房里有支未燃的蜡烛，用抽屉里的【火柴】点燃它。');
+    else if (!f.thermometerHot)
+        say('蜡烛已经点燃了。将【温度计】靠近烛火，让它感受那个温度。');
+    else if (!f.gotContract)
+        say('拿着【滚烫的温度计】，在「界限之眼」开启的状态下，去测量心电监护仪的温度。');
+    else if (!f.boxUnlocked)
+        say('西边的界门，需要将『契约』放入门中央的凹槽，才能破除封印。');
+    else
+        say('封印解除了。回到书桌，打开那份生辰礼物。');
+}
+
+// ============================
+// 界限之眼（含切换闪光）
+// ============================
+document.getElementById('realm-toggle').addEventListener('click', function () {
+    state.isYinRealm = !state.isYinRealm;
+    document.body.classList.toggle('yin-realm', state.isYinRealm);
+    this.innerText = state.isYinRealm ? '界限之眼: 开' : '界限之眼: 关';
+
+    const flash = document.getElementById('realm-flash');
+    flash.style.background = state.isYinRealm
+        ? 'rgba(140,0,0,0.18)' : 'rgba(180,200,255,0.12)';
+    flash.style.opacity = '1';
+    setTimeout(() => flash.style.opacity = '0', 200);
+
+    say(state.isYinRealm
+        ? '现实褪去。这房间的阴影里，藏着我不该忘掉的东西……'
+        : '一切又恢复了原状。可笑的宁静。');
+});
+
+// ============================
+// 场景切换
+// ============================
+function changeStage(d) {
+    document.getElementById(`stage-${state.stage}`).classList.remove('active');
+    state.stage = (state.stage + d + 4) % 4;
+    document.getElementById(`stage-${state.stage}`).classList.add('active');
+    dismissDialog();
+}
+// 键盘支持
+document.addEventListener('keydown', e => {
+    if (document.getElementById('overlay').style.display === 'flex') return;
+    if (e.key === 'ArrowLeft'  || e.key === 'a') changeStage(-1);
+    if (e.key === 'ArrowRight' || e.key === 'd') changeStage(1);
+    if (e.key === 'Escape') { state.selected = null; renderInv(); }
+});
+
+// ============================
+// 物品系统
+// ============================
+function addInv(id, delay) {
+    if (state.inv.includes(id)) return;
+    state.inv.push(id);
+    renderInv();
+    setTimeout(() => {
+        const popup = document.createElement('div');
+        popup.className = 'item-popup';
+        popup.textContent = `获得【${dict[id].n}】`;
+        document.getElementById('scene-container').appendChild(popup);
+        setTimeout(() => popup.remove(), 2100);
+    }, delay || 0);
+}
+function removeInv(id) {
+    state.inv = state.inv.filter(x => x !== id);
+    if (state.selected === id) state.selected = null;
+    renderInv();
+}
+function renderInv() {
+    const c = document.getElementById('inventory');
+    c.innerHTML = '<div class="inv-label">道具</div>';
+    state.inv.forEach(id => {
+        const el = document.createElement('div');
+        el.className = 'inv-item';
+        el.style.backgroundImage = `url('assets/${dict[id].img}')`;
+        el.innerHTML = `<span>${dict[id].n}</span><div class="inv-tip">${dict[id].n}</div>`;
+        const img = new Image();
+        img.src = `assets/${dict[id].img}`;
+        img.onerror = () => el.classList.add('no-img');
+        if (state.selected === id) el.classList.add('selected');
+        el.onclick = () => { state.selected = (state.selected === id) ? null : id; renderInv(); };
+        c.appendChild(el);
+    });
+}
+
+// ============================
+// 交互逻辑（完整五步谜题）
+// ============================
+function interact(target) {
+    const sel = state.selected;
+    const f   = state.f;
+
+    switch (target) {
+
+        case 'watch':
+            say('一个时钟。指针凝固在 11:47。那是某个雨夜，某段记忆的起点——尽管我已经想不起来了。');
+            break;
+
+        case 'drawer':
+            if (f.drawer) { say('抽屉已经空了，只剩下残存的寒意。'); return; }
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay-input').value = '';
+            document.getElementById('overlay-error').classList.remove('show');
+            setTimeout(() => document.getElementById('overlay-input').focus(), 80);
+            break;
+
+        case 'candle':
+            if (f.thermometerHot) {
+                say('蜡烛还在燃烧。温度计已经烤热了。');
+            } else if (f.candleLit && sel === 'thermometer') {
+                f.thermometerHot = true;
+                removeInv('thermometer');
+                addInv('thermometer_h');
+                say('温度计在烛火旁慢慢升温……三十九点二度。这是她发着高烧时的体温。', 5000);
+            } else if (f.candleLit) {
+                say('摇曳的烛火。将【温度计】靠近，感受那个数字。');
+            } else if (sel === 'match') {
+                f.candleLit = true;
+                removeInv('match');
+                const c = document.getElementById('hs-candle');
+                // 点燃后换成点燃状态图片，并加发光效果
+                c.style.filter = 'drop-shadow(0 0 14px rgba(255,160,40,0.7)) drop-shadow(0 0 5px rgba(255,100,0,0.5))';
+                c.setAttribute('data-lit', 'true');
+                say('火柴划过，烛芯燃起。昏黄的光晕在黑暗中颤抖，像某个人未说出口的话。');
+            } else {
+                say('未燃的蜡烛。需要【火柴】才能点燃它。');
+            }
+            break;
+
+        case 'monitor':
+            if (f.gotContract) {
+                say('它彻底死寂了。');
+            } else if (sel === 'thermometer_h' && state.isYinRealm) {
+                f.gotContract = true;
+                removeInv('thermometer_h');
+                addInv('contract');
+                say('这台机器记录了她最后的心跳。而温度计里，还残留着她三十九点二度的体温……两者相触的瞬间，机器发出悲鸣，屏幕上浮现出一张燃烧着红字的『契约』。', 8000);
+            } else if (sel === 'thermometer_h' && !state.isYinRealm) {
+                say('在表世界里，这只是个冰冷的机器。需要开启「界限之眼」才能看见它真正的温度。');
+            } else if (sel === 'thermometer') {
+                say('温度计还是凉的。也许需要先让它感受某种温度。');
+            } else {
+                say('死寂的机器，心电图上只有一条直线。用【滚烫的温度计】测测它深处的温度。');
+            }
+            break;
+
+        case 'mirror':
+            if (state.isYinRealm) {
+                say('里世界的镜中，影像模糊又破碎——像是某个人站在雨里，像是一双手递出了什么，像是一句话还没说完就消散了。什么都抓不住。也许答案不在这里。');
+            } else {
+                say('镜子里站着一个陌生人。那是我……但又不像我。空洞的眼睛，没有心跳，没有任何记忆的痕迹。看着他，有什么东西隐隐作痛，却想不起来是什么。再去别的地方看看吧。');
+            }
+            break;
+
+        case 'slot':
+            if (f.boxUnlocked) {
+                say('封印已经解开了，门上的红线都断裂了。');
+            } else if (sel === 'contract') {
+                f.boxUnlocked = true;
+                removeInv('contract');
+                document.getElementById('hs-slot').textContent = '已解封的门';
+                // 木盒热区发光提示
+                const box = document.getElementById('hs-box');
+                if (box) {
+                    box.style.color       = 'rgba(229,192,123,0.7)';
+                    box.style.borderColor = 'rgba(229,192,123,0.3)';
+                    box.style.background  = 'rgba(229,192,123,0.06)';
+                    box.style.boxShadow   = '0 0 20px rgba(229,192,123,0.15)';
+                }
+                say('契约嵌入凹槽，界门上的红线寸寸断裂。北方的书桌传来沉闷的『咔哒』声……木盒，开了。', 6000);
+            } else {
+                say('门中央有个凹槽，需要放入某种『契约』才能打破界限。');
+            }
+            break;
+
+        case 'box':
+            if (f.boxUnlocked) playEnding();
+            else say('它被界门的『规则』锁得很死，现在的我还打不开。');
+            break;
+    }
+}
+
+// ============================
+// 密码锁
+// ============================
+function closeOverlay() {
+    document.getElementById('overlay').style.display = 'none';
+}
+function checkPwd() {
+    if (document.getElementById('overlay-input').value === '1150') {
+        state.f.drawer = true;
+        closeOverlay();
+        addInv('match', 0);
+        addInv('thermometer', 1200);
+        document.getElementById('hs-drawer').textContent = '空抽屉';
+        say('抽屉开了。里面安静躺着一盒【火柴】和一支冰冷的【温度计】。这是她最后留下的东西。', 5000);
+    } else {
+        const err = document.getElementById('overlay-error');
+        err.classList.add('show');
+        document.getElementById('overlay-input').value = '';
+        setTimeout(() => err.classList.remove('show'), 2500);
+    }
+}
+
+// ============================
+// 结局演出：自动推进 + 点击上/下 + 重新触碰
+// ============================
+function playEnding() {
+    document.getElementById('inventory').style.display = 'none';
+    document.getElementById('header').style.display = 'none';
+    document.querySelectorAll('.nav').forEach(n => n.style.display = 'none');
+
+    const layer   = document.getElementById('ending-layer');
+    const content = document.getElementById('ending-content');
+    const tip     = document.getElementById('click-tip');
+    const nav     = document.getElementById('ending-nav');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    layer.style.display = 'flex';
+
+    // BGM 渐强
+    const bgm = document.getElementById('bgm');
+    let v2 = bgm.volume;
+    const t2 = setInterval(() => {
+        v2 = Math.min(v2 + 0.01, 0.85);
+        bgm.volume = v2;
+        if (v2 >= 0.85) clearInterval(t2);
+    }, 120);
+
+    // 每句话配一个停留时长（ms），按字数在 1500-2500 之间
+    const lines = [
+        { text: '沈冥 亲启',                                    dur: 5000 },
+        { text: '你之前问我，人为什么要过生日',                  dur: 5000 },
+        { text: '你说，人只有一次生日。其他的时间，都在等死。',  dur: 5000 },
+        { text: '你说的没错，',                                  dur: 5000 },
+        { text: '可人类也需要节点来记录自己等待了多久',          dur: 5000 },
+        { text: '所谓结绳记事便是如此',                          dur: 5000 },
+        { text: '而我愿意记录你的存在',                          dur: 5000 },
+        { text: '生日快乐。',                                    dur: 5000 },
+        { text: '——林夕',                                        dur: 5000 },
+    ];
+
+    let idx      = 0;
+    let curEl    = null;
+    let autoTimer= null;
+    let finished = false;
+
+    // 显示/隐藏上下句按钮
+    function updateNav() {
+        btnPrev.disabled = (idx <= 1);
+        btnNext.disabled = false;
+    }
+
+    // 渲染第 i 句（不推进 idx）
+    function renderLine(i) {
+        // 清掉旧元素
+        if (curEl) {
+            curEl.classList.remove('reveal');
+            curEl.classList.add('fade-out');
+            const old = curEl; curEl = null;
+            setTimeout(() => old.remove(), 900);
+        }
+        const div = document.createElement('div');
+        div.className = 'floating-line';
+        div.textContent = lines[i].text;
+        content.appendChild(div);
+        requestAnimationFrame(() => requestAnimationFrame(() => div.classList.add('reveal')));
+        curEl = div;
+        updateNav();
+    }
+
+    // 推进到下一句，或进入终局
+    function advance() {
+        clearTimeout(autoTimer);
+        if (finished) return;
+
+        if (idx >= lines.length) {
+            // 所有句子放完 → 终局
+            finished = true;
+            nav.style.display = 'none';
+            tip.style.display = 'none';
+            if (curEl) { curEl.classList.add('fade-out'); const o = curEl; setTimeout(() => o.remove(), 900); curEl = null; }
+            setTimeout(() => { content.style.display = 'none'; showBirthday(); }, 1200);
+            return;
+        }
+
+        renderLine(idx);
+        const wait = lines[idx].dur;
+        idx++;
+        autoTimer = setTimeout(advance, wait);
+    }
+
+    // 退回上一句
+    function goBack() {
+        if (idx <= 1 || finished) return;
+        clearTimeout(autoTimer);
+        idx -= 2; // 退两步：一步是当前已显示的，一步是准备显示的
+        if (idx < 0) idx = 0;
+        advance();
+    }
+
+    // 暴露给按钮
+    window.endingNext = function() { if (!finished) { clearTimeout(autoTimer); advance(); } };
+    window.endingPrev = function() { goBack(); };
+
+    // 点击 ending-layer 主体也能推进（排除按钮区域）
+    layer.onclick = function(e) {
+        if (e.target.closest('#ending-nav') || e.target.closest('#replay-prompt')) return;
+        if (!finished) { clearTimeout(autoTimer); advance(); }
+    };
+
+    // 启动：延迟 500ms 后显示导航按钮和第一句
+    setTimeout(() => {
+        tip.style.display = 'none';
+        nav.style.display = 'flex';
+        advance();
+    }, 500);
+}
+
+// 重新触碰记忆
+function replayGame() {
+    // BGM 淡出
+    const bgm = document.getElementById('bgm');
+    let v = bgm.volume;
+    const t = setInterval(() => {
+        v = Math.max(v - 0.02, 0);
+        bgm.volume = v;
+        if (v <= 0) { clearInterval(t); bgm.pause(); bgm.currentTime = 0; }
+    }, 80);
+
+    // 整个画面淡出后刷新页面回到起点
+    const layer = document.getElementById('ending-layer');
+    layer.style.transition = 'opacity 1.5s ease';
+    layer.style.opacity = '0';
+    setTimeout(() => location.reload(), 1600);
+}
+
+function showBirthday() {
+    const bday = document.getElementById('happy-birthday');
+    bday.textContent = '生日快乐';
+    bday.style.display = 'block';
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        bday.classList.add('appear');
+        setTimeout(() => spawnSparks(30), 400);
+        setTimeout(() => spawnSparks(20), 1400);
+    }));
+
+    // 生日快乐出现 4 秒后显示"再触碰"提示
+    setTimeout(() => {
+        const rp = document.getElementById('replay-prompt');
+        rp.style.display = 'block';
+    }, 4000);
+}
+
+function spawnSparks(count) {
+    const container = document.getElementById('ending-layer');
+    const cx = container.offsetWidth  / 2;
+    const cy = container.offsetHeight / 2;
+
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const spark = document.createElement('div');
+            spark.className = 'spark';
+            const angle = Math.random() * Math.PI * 2;
+            const dist  = 60 + Math.random() * 120;
+            const tx    = Math.cos(angle) * dist;
+            const ty    = Math.sin(angle) * dist - 30;
+            const dur   = (1.0 + Math.random() * 1.0).toFixed(2) + 's';
+            const size  = (2 + Math.random() * 2.5).toFixed(1) + 'px';
+            spark.style.cssText = `
+                left:${cx}px; top:${cy}px;
+                --tx:${tx}px; --ty:${ty}px; --dur:${dur};
+                width:${size}; height:${size};
+                box-shadow: 0 0 5px rgba(229,192,123,0.9);
+            `;
+            container.appendChild(spark);
+            setTimeout(() => spark.remove(), 2200);
+        }, i * 60);
+    }
+}
+// ============================
+// 等比缩放撑满屏幕
+// ============================
+function scaleGame() {
+    const W = 800, H = 600;
+    const scaleX = window.innerWidth  / W;
+    const scaleY = window.innerHeight / H;
+    const scale  = Math.min(scaleX, scaleY); // 保持比例，取较小值
+    const el = document.getElementById('game-container');
+    el.style.transform = `scale(${scale})`;
+}
+scaleGame();
+window.addEventListener('resize', scaleGame);
+</script>
+</body>
+</html>
