@@ -294,18 +294,16 @@
 <body>
 
 <div id="start-screen" onclick="initGame()">
-    <h1>无心引路人</h1>
-    <div style="color:#2a2a2a;font-size:11px;letter-spacing:4px;margin-bottom:52px;">生 辰</div>
-    <div class="start-tip">点击触碰记忆的裂痕</div>
+    <h1 style="font-size:48px;letter-spacing:16px;">无心引路人</h1>
+
+    <div class="start-tip" style="font-size:19px;letter-spacing:6px;margin-bottom:28px;">点击触碰记忆的裂痕</div>
 
     <!-- 指南按钮 -->
-    <div style="position:fixed;bottom:32px;right:36px;z-index:10000;"
-         onclick="event.stopPropagation();document.getElementById('guide-overlay').style.opacity='1';document.getElementById('guide-overlay').style.pointerEvents='auto';">
-        <div style="color:#888;font-size:12px;letter-spacing:3px;border:1px solid #444;padding:10px 20px;cursor:pointer;transition:all 0.3s;animation:pulse 2s infinite;"
-             onmouseover="this.style.color='#e5c07b';this.style.borderColor='#e5c07b';this.style.animation='none'"
-             onmouseout="this.style.color='#888';this.style.borderColor='#444';this.style.animation='pulse 2s infinite'">
-            ？ 游玩指南
-        </div>
+    <div style="font-size:13px;letter-spacing:4px;color:#666;border:1px solid #333;padding:9px 22px;cursor:pointer;transition:all 0.3s;animation:pulse 2s infinite;"
+         onclick="event.stopPropagation();document.getElementById('guide-overlay').style.opacity='1';document.getElementById('guide-overlay').style.pointerEvents='auto';"
+         onmouseover="this.style.color='#e5c07b';this.style.borderColor='#e5c07b';this.style.animation='none'"
+         onmouseout="this.style.color='#666';this.style.borderColor='#333';this.style.animation='pulse 2s infinite'">
+        游玩指南
     </div>
 
     <!-- 指南遮罩 -->
@@ -313,52 +311,48 @@
          style="position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:10001;display:flex;flex-direction:column;justify-content:center;align-items:center;opacity:0;pointer-events:none;transition:opacity 0.5s ease;"
          onclick="this.style.opacity='0';this.style.pointerEvents='none';">
 
-        <div style="max-width:460px;width:90%;text-align:left;" onclick="event.stopPropagation()">
-            <div style="color:#666;font-size:10px;letter-spacing:6px;margin-bottom:28px;text-align:center;">游 玩 指 南</div>
+        <div style="max-width:600px;width:88%;text-align:left;" onclick="event.stopPropagation()">
+            <div style="color:#888;font-size:11px;letter-spacing:6px;margin-bottom:32px;text-align:center;">游 玩 指 南</div>
 
-            <div style="margin-bottom:18px;">
-                <div style="color:#aaa;font-size:11px;letter-spacing:3px;margin-bottom:6px;">开始游戏</div>
-                <div style="color:#777;font-size:12px;line-height:2.2;letter-spacing:0.5px;">点击黑屏上的文字进入游戏，注意游戏自带 BGM。</div>
+            <div style="margin-bottom:20px;">
+                <div style="color:#ddd;font-size:12px;letter-spacing:3px;margin-bottom:7px;">开始游戏</div>
+                <div style="color:#bbb;font-size:13px;line-height:2.3;letter-spacing:0.5px;">点击黑屏上的文字进入游戏，注意游戏自带 BGM。</div>
             </div>
 
-            <div style="margin-bottom:18px;">
-                <div style="color:#aaa;font-size:11px;letter-spacing:3px;margin-bottom:6px;">基本操作</div>
-                <div style="color:#777;font-size:12px;line-height:2.2;letter-spacing:0.5px;">
-                    画面左右箭头切换房间，共四个方向。<br>
+            <div style="margin-bottom:20px;">
+                <div style="color:#ddd;font-size:12px;letter-spacing:3px;margin-bottom:7px;">基本操作</div>
+                <div style="color:#bbb;font-size:13px;line-height:2.3;letter-spacing:0.5px;">
+                    画面左右两侧箭头切换房间，共四个方向。<br>
                     鼠标悬停，有光晕或文字浮现处可点击。<br>
                     右侧道具栏点击选中道具（红色边框），再点击场景物品使用。
                 </div>
             </div>
 
-            <div style="margin-bottom:18px;">
-                <div style="color:#aaa;font-size:11px;letter-spacing:3px;margin-bottom:6px;">两个世界</div>
-                <div style="color:#777;font-size:12px;line-height:2.2;letter-spacing:0.5px;">右上角「界限之眼」切换滤镜，某些线索只在特定世界可见或可用。</div>
+            <div style="margin-bottom:20px;">
+                <div style="color:#ddd;font-size:12px;letter-spacing:3px;margin-bottom:7px;">两个世界</div>
+                <div style="color:#bbb;font-size:13px;line-height:2.3;letter-spacing:0.5px;">右上角「界限之眼」切换画面滤镜，某些线索只在特定世界可见或可用。</div>
             </div>
 
-            <div style="margin-bottom:18px;">
-                <div style="color:#aaa;font-size:11px;letter-spacing:3px;margin-bottom:6px;">卡关了怎么办</div>
-                <div style="color:#777;font-size:12px;line-height:2.2;letter-spacing:0.5px;">左上角「冥思」获取提示，不剧透，只指引下一步。</div>
+            <div style="margin-bottom:20px;">
+                <div style="color:#ddd;font-size:12px;letter-spacing:3px;margin-bottom:7px;">卡关了怎么办</div>
+                <div style="color:#bbb;font-size:13px;line-height:2.3;letter-spacing:0.5px;">左上角「冥思」获取提示，不剧透，只指引下一步。</div>
             </div>
 
-            <div style="margin-bottom:24px;">
-                <div style="color:#aaa;font-size:11px;letter-spacing:3px;margin-bottom:6px;">关于这个故事</div>
-                <div style="color:#777;font-size:12px;line-height:2.2;letter-spacing:0.5px;">你扮演一个失去记忆的人，在房间里醒来，慢慢拼凑出一段被遗忘的记忆。专心体验约需 5 分钟。</div>
+            <div style="margin-bottom:28px;">
+                <div style="color:#ddd;font-size:12px;letter-spacing:3px;margin-bottom:7px;">关于这个故事</div>
+                <div style="color:#bbb;font-size:13px;line-height:2.3;letter-spacing:0.5px;">你扮演一个失去记忆的人，在房间里醒来，慢慢拼凑出一段被遗忘的记忆。游戏不长，专心体验约需 5 分钟。</div>
             </div>
 
-            <div style="border-top:1px solid #1c1c1c;padding-top:16px;color:#444;font-size:11px;line-height:2;letter-spacing:0.5px;">
-                网络环境可能影响加载，建议切换网络或使用 VPN。
+            <div style="border-top:1px solid #222;padding-top:18px;color:#777;font-size:12px;line-height:2.2;letter-spacing:0.5px;">
+                网络环境可能影响游戏加载，建议切换网络或使用 VPN。
             </div>
 
-            <div style="text-align:center;margin-top:32px;color:#333;font-size:11px;letter-spacing:3px;cursor:pointer;"
+            <div style="text-align:center;margin-top:36px;color:#666;font-size:11px;letter-spacing:4px;cursor:pointer;"
                  onclick="document.getElementById('guide-overlay').style.opacity='0';document.getElementById('guide-overlay').style.pointerEvents='none';">
                 点击任意位置关闭
             </div>
         </div>
-
     </div>
-</div>
-
-    <div class="start-tip">点击触碰记忆的裂痕</div>
 </div>
 
 <div id="game-container">
